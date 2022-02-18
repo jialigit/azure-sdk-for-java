@@ -8,11 +8,10 @@ import com.azure.messaging.servicebus.ServiceBusErrorContext;
 import com.azure.messaging.servicebus.ServiceBusMessage;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import com.azure.spring.integration.instrumentation.DefaultInstrumentationManager;
-import com.azure.spring.integration.servicebus.inbound.ServiceBusInboundChannelAdapter.IntegrationRecordMessageProcessingListener;
 import com.azure.spring.messaging.checkpoint.CheckpointConfig;
 import com.azure.spring.messaging.checkpoint.CheckpointMode;
 import com.azure.spring.messaging.converter.AbstractAzureMessageConverter;
-import com.azure.spring.servicebus.core.ServiceBusProcessorContainer;
+import com.azure.spring.servicebus.core.listener.ServiceBusMessageListenerContainer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,14 +45,14 @@ class ServiceBusInboundChannelAdapterTests {
 
     @BeforeEach
     public void setUp() {
-        this.adapter = new TestServiceBusInboundChannelAdapter(mock(ServiceBusProcessorContainer.class),
+        this.adapter = new TestServiceBusInboundChannelAdapter(mock(ServiceBusMessageListenerContainer.class),
             destination, subscription, new CheckpointConfig(CheckpointMode.RECORD));
     }
 
     @Test
     void destinationCannotEmptyWhenEntityTypeIsTopic() {
         assertThrows(IllegalArgumentException.class,
-            () -> new TestServiceBusInboundChannelAdapter(mock(ServiceBusProcessorContainer.class),
+            () -> new TestServiceBusInboundChannelAdapter(mock(ServiceBusMessageListenerContainer.class),
                 null, null, new CheckpointConfig(CheckpointMode.RECORD)));
     }
 
@@ -93,7 +92,8 @@ class ServiceBusInboundChannelAdapterTests {
         when(serviceBusErrorContext.getEntityPath()).thenReturn("test-path");
         when(serviceBusErrorContext.getException()).thenReturn(new IllegalArgumentException());
         assertDoesNotThrow(() -> {
-            IntegrationRecordMessageProcessingListener listener = this.adapter.new IntegrationRecordMessageProcessingListener();
+            ServiceBusInboundChannelAdapter.IntegrationRecordMessageListener listener =
+                this.adapter.new IntegrationRecordMessageListener();
             listener.getErrorContextConsumer().accept(serviceBusErrorContext);
         });
     }
@@ -127,9 +127,9 @@ class ServiceBusInboundChannelAdapterTests {
     static class TestServiceBusInboundChannelAdapter extends ServiceBusInboundChannelAdapter {
 
 
-        TestServiceBusInboundChannelAdapter(ServiceBusProcessorContainer messageProcessorsContainer,
-                                          String destination, String subscription,
-                                          CheckpointConfig checkpointConfig) {
+        TestServiceBusInboundChannelAdapter(ServiceBusMessageListenerContainer messageProcessorsContainer,
+                                            String destination, String subscription,
+                                            CheckpointConfig checkpointConfig) {
             super(messageProcessorsContainer, destination, subscription, checkpointConfig);
         }
 
@@ -139,7 +139,8 @@ class ServiceBusInboundChannelAdapterTests {
         }
     }
 
-    static class TestServiceBusMessageConverter extends AbstractAzureMessageConverter<ServiceBusReceivedMessage, ServiceBusMessage> {
+    static class TestServiceBusMessageConverter extends AbstractAzureMessageConverter<ServiceBusReceivedMessage,
+        ServiceBusMessage> {
 
         @Override
         protected ObjectMapper getObjectMapper() {

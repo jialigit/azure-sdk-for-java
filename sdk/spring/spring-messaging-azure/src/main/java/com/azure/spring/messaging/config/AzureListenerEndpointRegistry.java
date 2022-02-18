@@ -3,7 +3,7 @@
 
 package com.azure.spring.messaging.config;
 
-import com.azure.spring.messaging.container.ListenerContainerFactory;
+import com.azure.spring.messaging.container.MessageListenerContainerFactory;
 import com.azure.spring.messaging.container.MessageListenerContainer;
 import com.azure.spring.messaging.endpoint.AzureListenerEndpoint;
 import org.slf4j.Logger;
@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @see AzureListenerEndpoint
  * @see MessageListenerContainer
- * @see ListenerContainerFactory
+ * @see MessageListenerContainerFactory
  */
 public class AzureListenerEndpointRegistry
     implements DisposableBean, SmartLifecycle, ApplicationContextAware, ApplicationListener<ContextRefreshedEvent> {
@@ -86,7 +86,7 @@ public class AzureListenerEndpointRegistry
      * @see #getListenerContainers()
      */
     public void registerListenerContainer(AzureListenerEndpoint endpoint,
-                                          ListenerContainerFactory<?> factory,
+                                          MessageListenerContainerFactory<?> factory,
                                           boolean startImmediately) {
 
         Assert.notNull(endpoint, "Endpoint must not be null");
@@ -99,6 +99,7 @@ public class AzureListenerEndpointRegistry
                 throw new IllegalStateException("Another endpoint is already registered with id '" + id + "'");
             }
             MessageListenerContainer container = createListenerContainer(endpoint, factory);
+
             this.listenerContainers.put(id, container);
             if (startImmediately) {
                 startIfNecessary(container);
@@ -112,9 +113,9 @@ public class AzureListenerEndpointRegistry
      *
      * @param endpoint the endpoint to add
      * @param factory the listener factory to use
-     * @see #registerListenerContainer(AzureListenerEndpoint, ListenerContainerFactory, boolean)
+     * @see #registerListenerContainer(AzureListenerEndpoint, MessageListenerContainerFactory, boolean)
      */
-    public void registerListenerContainer(AzureListenerEndpoint endpoint, ListenerContainerFactory<?> factory) {
+    public void registerListenerContainer(AzureListenerEndpoint endpoint, MessageListenerContainerFactory<?> factory) {
         registerListenerContainer(endpoint, factory, true);
     }
 
@@ -128,7 +129,7 @@ public class AzureListenerEndpointRegistry
      * @throws IllegalStateException If phase mismatch is encountered between container factory and conta
      */
     protected MessageListenerContainer createListenerContainer(AzureListenerEndpoint endpoint,
-                                                               ListenerContainerFactory<?> factory) {
+                                                               MessageListenerContainerFactory<?> factory) {
 
         MessageListenerContainer listenerContainer = factory.createListenerContainer(endpoint);
 

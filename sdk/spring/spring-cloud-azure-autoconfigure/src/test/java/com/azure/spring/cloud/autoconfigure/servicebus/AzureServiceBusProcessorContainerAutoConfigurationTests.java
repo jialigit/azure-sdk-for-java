@@ -3,7 +3,7 @@
 
 package com.azure.spring.cloud.autoconfigure.servicebus;
 
-import com.azure.spring.servicebus.core.ServiceBusProcessorContainer;
+import com.azure.spring.servicebus.core.listener.ServiceBusMessageListenerContainer;
 import com.azure.spring.servicebus.core.processor.ServiceBusProcessorFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -31,7 +31,7 @@ class AzureServiceBusProcessorContainerAutoConfigurationTests {
     @Test
     void withoutServiceBusProcessorContainerShouldNotConfigure() {
         this.contextRunner
-            .withClassLoader(new FilteredClassLoader(ServiceBusProcessorContainer.class))
+            .withClassLoader(new FilteredClassLoader(ServiceBusMessageListenerContainer.class))
             .withPropertyValues(
                 "spring.cloud.azure.servicebus.namespace=test-namespace"
             )
@@ -53,7 +53,7 @@ class AzureServiceBusProcessorContainerAutoConfigurationTests {
             )
             .withUserConfiguration(AzureServiceBusPropertiesTestConfiguration.class)
             .run(context -> {
-                assertThat(context).hasSingleBean(ServiceBusProcessorContainer.class);
+                assertThat(context).hasSingleBean(ServiceBusMessageListenerContainer.class);
                 assertThat(context).hasSingleBean(ServiceBusProcessorFactory.class);
                 assertThat(context).hasSingleBean(AzureServiceBusMessagingAutoConfiguration.ProcessorContainerConfiguration.class);
             });

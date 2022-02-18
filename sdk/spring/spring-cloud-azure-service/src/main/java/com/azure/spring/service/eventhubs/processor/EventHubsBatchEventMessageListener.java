@@ -7,9 +7,9 @@ package com.azure.spring.service.eventhubs.processor;
 import com.azure.messaging.eventhubs.models.EventBatchContext;
 
 /**
- * A listener to process Event Hub events.
+ * A listener to process Event Hub batch events.
  */
-public interface BatchEventProcessingListener extends EventProcessingListener {
+public interface EventHubsBatchEventMessageListener extends EventHubsEventMessageListener {
 
     /**
      * The event batch processing callback.

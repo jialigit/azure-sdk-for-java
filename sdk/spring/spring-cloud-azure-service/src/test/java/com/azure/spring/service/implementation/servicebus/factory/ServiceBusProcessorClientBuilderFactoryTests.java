@@ -6,8 +6,9 @@ package com.azure.spring.service.implementation.servicebus.factory;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.spring.core.properties.authentication.NamedKeyProperties;
 import com.azure.spring.service.implementation.servicebus.TestServiceBusProcessorClientProperties;
-import com.azure.spring.service.servicebus.processor.MessageProcessingListener;
-import com.azure.spring.service.servicebus.processor.RecordMessageProcessingListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListenerContainerSupport;
+import com.azure.spring.service.servicebus.processor.ServiceBusRecordMessageListener;
 import com.azure.spring.service.servicebus.properties.ServiceBusEntityType;
 
 import static org.mockito.Mockito.doReturn;
@@ -64,11 +65,13 @@ class ServiceBusProcessorClientBuilderFactoryTests
 
     private ServiceBusProcessorClientBuilderFactoryExt getClientBuilderFactory(TestServiceBusProcessorClientProperties properties) {
         ServiceBusClientBuilder clientBuilder = mock(ServiceBusClientBuilder.class);
-        MessageProcessingListener listener = (RecordMessageProcessingListener) messageContext -> {
+        ServiceBusMessageListener listener = (ServiceBusRecordMessageListener) messageContext -> {
 
         };
+        ServiceBusMessageListenerContainerSupport listenerContainerSupport =
+            mock(ServiceBusMessageListenerContainerSupport.class);
         ServiceBusProcessorClientBuilderFactoryExt factory =
-            spy(new ServiceBusProcessorClientBuilderFactoryExt(clientBuilder, properties, listener));
+            spy(new ServiceBusProcessorClientBuilderFactoryExt(clientBuilder, properties, listener, listenerContainerSupport));
         doReturn(false).when(factory).isShareServiceBusClientBuilder();
         return factory;
     }
@@ -76,8 +79,9 @@ class ServiceBusProcessorClientBuilderFactoryTests
     static class ServiceBusProcessorClientBuilderFactoryExt extends ServiceBusProcessorClientBuilderFactory {
         ServiceBusProcessorClientBuilderFactoryExt(ServiceBusClientBuilder serviceBusClientBuilder,
                                                    TestServiceBusProcessorClientProperties properties,
-                                                   MessageProcessingListener processingListener) {
-            super(serviceBusClientBuilder, properties, processingListener);
+                                                   ServiceBusMessageListener messageListener,
+                                                   ServiceBusMessageListenerContainerSupport listenerContainerSupport) {
+            super(serviceBusClientBuilder, properties, messageListener, listenerContainerSupport);
         }
 
         @Override

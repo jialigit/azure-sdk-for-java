@@ -6,27 +6,18 @@ package com.azure.spring.integration.eventhubs.inbound;
 import com.azure.messaging.eventhubs.EventData;
 import com.azure.messaging.eventhubs.models.ErrorContext;
 import com.azure.messaging.eventhubs.models.EventBatchContext;
-import com.azure.messaging.eventhubs.models.EventContext;
-import com.azure.messaging.eventhubs.models.PartitionContext;
 import com.azure.spring.eventhubs.checkpoint.CheckpointManagers;
 import com.azure.spring.eventhubs.checkpoint.EventCheckpointManager;
-import com.azure.spring.eventhubs.core.EventHubsProcessorContainer;
-import com.azure.spring.eventhubs.support.EventHubsHeaders;
-import com.azure.spring.eventhubs.support.converter.EventHubsBatchMessageConverter;
-import com.azure.spring.eventhubs.support.converter.EventHubsMessageConverter;
+import com.azure.spring.eventhubs.core.listener.EventHubsMessageListenerContainer;
+import com.azure.spring.eventhubs.core.listener.adapter.BatchEventListenerAdapter;
+import com.azure.spring.eventhubs.core.listener.adapter.RecordEventListenerAdapter;
 import com.azure.spring.integration.eventhubs.inbound.health.EventHubsProcessorInstrumentation;
 import com.azure.spring.integration.instrumentation.Instrumentation;
 import com.azure.spring.integration.instrumentation.InstrumentationManager;
-import com.azure.spring.messaging.AzureHeaders;
 import com.azure.spring.messaging.ListenerMode;
-import com.azure.spring.messaging.checkpoint.AzureCheckpointer;
 import com.azure.spring.messaging.checkpoint.CheckpointConfig;
-import com.azure.spring.messaging.checkpoint.CheckpointMode;
-import com.azure.spring.messaging.checkpoint.Checkpointer;
 import com.azure.spring.messaging.converter.AzureMessageConverter;
-import com.azure.spring.service.eventhubs.processor.BatchEventProcessingListener;
-import com.azure.spring.service.eventhubs.processor.EventProcessingListener;
-import com.azure.spring.service.eventhubs.processor.RecordEventProcessingListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventListenerContainerSupport;
 import com.azure.spring.service.eventhubs.processor.consumer.EventHubsCloseContextConsumer;
 import com.azure.spring.service.eventhubs.processor.consumer.EventHubsErrorContextConsumer;
 import com.azure.spring.service.eventhubs.processor.consumer.EventHubsInitializationContextConsumer;
@@ -34,14 +25,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.function.Consumer;
 
 /**
- * Inbound channel adapter for Azure Event Hubs.
+ * Message driven inbound channel adapter for Azure Event Hubs.
  * <p>
  * Example:
  * <pre> <code>
@@ -77,37 +66,35 @@ import java.util.Map;
 public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventHubsInboundChannelAdapter.class);
-    private final EventHubsProcessorContainer processorContainer;
     private final String eventHubName;
     private final String consumerGroup;
+
+    private final EventHubsMessageListenerContainer processorContainer;
+    private IntegrationRecordEventListener recordListener;
+    private IntegrationBatchEventListener batchListener;
     private final ListenerMode listenerMode;
-    private final IntegrationRecordEventProcessingListener recordEventProcessor = new IntegrationRecordEventProcessingListener();
-    private final IntegrationBatchEventProcessingListener batchEventProcessor =
-        new IntegrationBatchEventProcessingListener();
 
     private final CheckpointConfig checkpointConfig;
-    private InstrumentationEventProcessingListener listener;
-    private EventCheckpointManager checkpointManager;
     private Class<?> payloadType;
 
     /**
-     * Construct a {@link EventHubsInboundChannelAdapter} with the specified {@link EventHubsProcessorContainer}, event Hub Name
-     * , consumer Group and {@link CheckpointConfig}.
+     * Construct a {@link EventHubsInboundChannelAdapter} with the specified {@link EventHubsMessageListenerContainer},
+     * event Hub Name , consumer Group and {@link CheckpointConfig}.
      *
      * @param processorContainer the processor container
      * @param eventHubName the eventHub name
      * @param consumerGroup the consumer group
      * @param checkpointConfig the checkpoint config
      */
-    public EventHubsInboundChannelAdapter(EventHubsProcessorContainer processorContainer,
+    public EventHubsInboundChannelAdapter(EventHubsMessageListenerContainer processorContainer,
                                           String eventHubName, String consumerGroup,
                                           CheckpointConfig checkpointConfig) {
         this(processorContainer, eventHubName, consumerGroup, ListenerMode.RECORD, checkpointConfig);
     }
 
     /**
-     * Construct a {@link EventHubsInboundChannelAdapter} with the specified {@link EventHubsProcessorContainer}, event Hub Name
-     * , consumer Group, {@link ListenerMode} and {@link CheckpointConfig}.
+     * Construct a {@link EventHubsInboundChannelAdapter} with the specified {@link EventHubsMessageListenerContainer},
+     * event Hub Name , consumer Group, {@link ListenerMode} and {@link CheckpointConfig}.
      *
      * @param eventProcessorsContainer the event processors container
      * @param eventHubName the eventHub name
@@ -115,7 +102,7 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
      * @param listenerMode the listener mode
      * @param checkpointConfig the checkpoint config
      */
-    public EventHubsInboundChannelAdapter(EventHubsProcessorContainer eventProcessorsContainer,
+    public EventHubsInboundChannelAdapter(EventHubsMessageListenerContainer eventProcessorsContainer,
                                           String eventHubName, String consumerGroup,
                                           ListenerMode listenerMode,
                                           CheckpointConfig checkpointConfig) {
@@ -131,17 +118,26 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
 
     @Override
     protected void onInit() {
-        if (ListenerMode.BATCH.equals(this.listenerMode)) {
-            this.listener = batchEventProcessor;
-        } else {
-            this.listener = recordEventProcessor;
-        }
+        super.onInit();
 
-        if (this.payloadType != null) {
-            this.listener.setPayloadType(payloadType);
+        EventCheckpointManager checkpointManager = CheckpointManagers.of(checkpointConfig, this.listenerMode);
+
+        this.recordListener = new IntegrationRecordEventListener(super::sendMessage, checkpointConfig
+            , checkpointManager);
+        this.batchListener = new IntegrationBatchEventListener(super::sendMessage, checkpointConfig,
+            checkpointManager);
+
+        if (ListenerMode.BATCH.equals(this.listenerMode)) {
+            this.processorContainer.subscribe(this.eventHubName, this.consumerGroup, this.batchListener, this.batchListener);
+            if (this.payloadType != null) {
+                this.batchListener.setPayloadType(payloadType);
+            }
+        } else {
+            this.processorContainer.subscribe(this.eventHubName, this.consumerGroup, this.recordListener, this.recordListener);
+            if (this.payloadType != null) {
+                this.recordListener.setPayloadType(payloadType);
+            }
         }
-        this.checkpointManager = CheckpointManagers.of(checkpointConfig, this.listenerMode);
-        this.processorContainer.subscribe(this.eventHubName, this.consumerGroup, this.listener);
     }
 
     @Override
@@ -160,7 +156,7 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
      * @param messageConverter the message converter
      */
     public void setMessageConverter(AzureMessageConverter<EventData, EventData> messageConverter) {
-        this.recordEventProcessor.setMessageConverter(messageConverter);
+        this.recordListener.setMessageConverter(messageConverter);
     }
 
     /**
@@ -169,7 +165,7 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
      * @param messageConverter the message converter
      */
     public void setBatchMessageConverter(AzureMessageConverter<EventBatchContext, EventData> messageConverter) {
-        this.batchEventProcessor.setMessageConverter(messageConverter);
+        this.batchListener.setMessageConverter(messageConverter);
     }
 
     /**
@@ -188,9 +184,9 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
      */
     public void setInstrumentationManager(InstrumentationManager instrumentationManager) {
         if (ListenerMode.BATCH.equals(this.listenerMode)) {
-            this.batchEventProcessor.setInstrumentationManager(instrumentationManager);
+            this.batchListener.setInstrumentationManager(instrumentationManager);
         } else {
-            this.recordEventProcessor.setInstrumentationManager(instrumentationManager);
+            this.recordListener.setInstrumentationManager(instrumentationManager);
         }
     }
 
@@ -201,19 +197,17 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
      */
     public void setInstrumentationId(String instrumentationId) {
         if (ListenerMode.BATCH.equals(this.listenerMode)) {
-            this.batchEventProcessor.setInstrumentationId(instrumentationId);
+            this.batchListener.setInstrumentationId(instrumentationId);
         } else {
-            this.recordEventProcessor.setInstrumentationId(instrumentationId);
+            this.recordListener.setInstrumentationId(instrumentationId);
         }
     }
 
     /**
-     *
+     * Instrumentation aware interface.
      */
-    private interface InstrumentationEventProcessingListener extends EventProcessingListener {
-        void setInstrumentationManager(InstrumentationManager instrumentationManager);
-        void setInstrumentationId(String instrumentationId);
-        void setPayloadType(Class<?> payloadType);
+    private interface InstrumentationAware {
+
         default void updateInstrumentation(ErrorContext errorContext,
                                            InstrumentationManager instrumentationManager,
                                            String instrumentationId) {
@@ -232,12 +226,16 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
         }
     }
 
-    private class IntegrationRecordEventProcessingListener implements InstrumentationEventProcessingListener, RecordEventProcessingListener {
+    private static class IntegrationRecordEventListener extends RecordEventListenerAdapter implements InstrumentationAware, EventHubsEventListenerContainerSupport {
 
-        private AzureMessageConverter<EventData, EventData> messageConverter = new EventHubsMessageConverter();
-        private Class<?> payloadType = byte[].class;
         private InstrumentationManager instrumentationManager;
         private String instrumentationId;
+
+        public IntegrationRecordEventListener(Consumer<Message<?>> consumer,
+                                              CheckpointConfig checkpointConfig,
+                                              EventCheckpointManager checkpointManager) {
+            super(consumer, checkpointConfig, checkpointManager);
+        }
 
         @Override
         public EventHubsErrorContextConsumer getErrorContextConsumer() {
@@ -247,29 +245,6 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
                     errorContext.getThrowable());
                 updateInstrumentation(errorContext, instrumentationManager, instrumentationId);
             };
-        }
-
-        @Override
-        public void onEvent(EventContext eventContext) {
-            PartitionContext partition = eventContext.getPartitionContext();
-
-            Map<String, Object> headers = new HashMap<>();
-            headers.put(AzureHeaders.RAW_PARTITION_ID, partition.getPartitionId());
-            headers.put(EventHubsHeaders.LAST_ENQUEUED_EVENT_PROPERTIES, eventContext.getLastEnqueuedEventProperties());
-
-            final EventData event = eventContext.getEventData();
-
-            Checkpointer checkpointer = new AzureCheckpointer(eventContext::updateCheckpointAsync);
-            if (CheckpointMode.MANUAL.equals(checkpointConfig.getMode())) {
-                headers.put(AzureHeaders.CHECKPOINTER, checkpointer);
-            }
-
-            Message<?> message = this.messageConverter.toMessage(event, new MessageHeaders(headers), payloadType);
-
-            sendMessage(message);
-
-            checkpointManager.checkpoint(eventContext);
-
         }
 
         @Override
@@ -285,42 +260,25 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
                 initializationContext.getPartitionContext().getPartitionId());
         }
 
-        /**
-         * Set message converter.
-         *
-         * @param converter the converter
-         */
-        public void setMessageConverter(AzureMessageConverter<EventData, EventData> converter) {
-            this.messageConverter = converter;
-        }
-
-        /**
-         * Set payload type.
-         *
-         * @param payloadType the payload type
-         */
-        @Override
-        public void setPayloadType(Class<?> payloadType) {
-            this.payloadType = payloadType;
-        }
-
-        @Override
         public void setInstrumentationManager(InstrumentationManager instrumentationManager) {
             this.instrumentationManager = instrumentationManager;
         }
 
-        @Override
         public void setInstrumentationId(String instrumentationId) {
             this.instrumentationId = instrumentationId;
         }
     }
 
-    private class IntegrationBatchEventProcessingListener implements InstrumentationEventProcessingListener, BatchEventProcessingListener {
+    private static class IntegrationBatchEventListener extends BatchEventListenerAdapter implements InstrumentationAware, EventHubsEventListenerContainerSupport {
 
-        private AzureMessageConverter<EventBatchContext, EventData> messageConverter = new EventHubsBatchMessageConverter();
-        private Class<?> payloadType = byte[].class;
         private InstrumentationManager instrumentationManager;
         private String instrumentationId;
+
+        public IntegrationBatchEventListener(Consumer<Message<?>> consumer,
+                                             CheckpointConfig checkpointConfig,
+                                             EventCheckpointManager checkpointManager) {
+            super(consumer, checkpointConfig, checkpointManager);
+        }
 
         @Override
         public EventHubsErrorContextConsumer getErrorContextConsumer() {
@@ -345,55 +303,14 @@ public class EventHubsInboundChannelAdapter extends MessageProducerSupport {
                 initializationContext.getPartitionContext().getPartitionId());
         }
 
-        /**
-         * Set message converter.
-         *
-         * @param converter the converter
-         */
-        public void setMessageConverter(AzureMessageConverter<EventBatchContext, EventData> converter) {
-            this.messageConverter = converter;
-        }
-
-        /**
-         * Set payload type.
-         *
-         * @param payloadType the payload type
-         */
-        @Override
-        public void setPayloadType(Class<?> payloadType) {
-            this.payloadType = payloadType;
-        }
-
-        @Override
-        public void onEventBatch(EventBatchContext eventBatchContext) {
-            PartitionContext partition = eventBatchContext.getPartitionContext();
-
-            Map<String, Object> headers = new HashMap<>();
-            headers.put(AzureHeaders.RAW_PARTITION_ID, partition.getPartitionId());
-            headers.put(EventHubsHeaders.LAST_ENQUEUED_EVENT_PROPERTIES, eventBatchContext.getLastEnqueuedEventProperties());
-
-            Checkpointer checkpointer = new AzureCheckpointer(eventBatchContext::updateCheckpointAsync);
-            if (CheckpointMode.MANUAL.equals(checkpointConfig.getMode())) {
-                headers.put(AzureHeaders.CHECKPOINTER, checkpointer);
-            }
-
-            Message<?> message = this.messageConverter.toMessage(eventBatchContext, new MessageHeaders(headers), payloadType);
-
-            sendMessage(message);
-            if (checkpointConfig.getMode().equals(CheckpointMode.BATCH)) {
-                checkpointManager.checkpoint(eventBatchContext);
-            }
-        }
-
-        @Override
         public void setInstrumentationManager(InstrumentationManager instrumentationManager) {
             this.instrumentationManager = instrumentationManager;
         }
 
-        @Override
         public void setInstrumentationId(String instrumentationId) {
             this.instrumentationId = instrumentationId;
         }
+
     }
 
 }

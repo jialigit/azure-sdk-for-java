@@ -11,6 +11,7 @@ import org.springframework.util.Assert;
 
 /**
  * The implementation of {@link AzureMessageHandler} to handle a {@link Message}
+ *
  * @see Message
  * @see InvocableHandlerMethod
  */
@@ -24,23 +25,25 @@ public class DefaultAzureMessageHandler implements AzureMessageHandler {
     private String createMessagingErrorMessage(String description) {
         InvocableHandlerMethod handlerMethod = getHandlerMethod();
         StringBuilder sb =
-                new StringBuilder(description).append("\n").append("Endpoint handler details:\n").append("Method [")
-                                              .append(handlerMethod.getMethod()).append("]\n").append("Bean [")
-                                              .append(handlerMethod.getBean()).append("]\n");
+            new StringBuilder(description).append("\n").append("Endpoint handler details:\n").append("Method [")
+                                          .append(handlerMethod.getMethod()).append("]\n").append("Bean [")
+                                          .append(handlerMethod.getBean()).append("]\n");
         return sb.toString();
     }
 
     @Override
     public void handleMessage(Message<?> message) throws MessagingException {
-        InvocableHandlerMethod handlerMethod = getHandlerMethod();
         try {
+            Assert.notNull(handlerMethod, "handlerMethod should not be null!");
             handlerMethod.invoke(message);
+        } catch (IllegalArgumentException ex) {
+            throw new ListenerExecutionFailedException(ex.getMessage(), ex);
         } catch (MessagingException ex) {
             throw new ListenerExecutionFailedException(
-                    createMessagingErrorMessage("Listener method could not be invoked with incoming message"), ex);
+                createMessagingErrorMessage("Listener method could not be invoked with incoming message"), ex);
         } catch (Exception ex) {
             throw new ListenerExecutionFailedException(
-                    "Listener method '" + handlerMethod.getMethod().toGenericString() + "' threw exception", ex);
+                "Listener method '" + handlerMethod.getMethod().toGenericString() + "' threw exception", ex);
         }
     }
 
@@ -55,6 +58,7 @@ public class DefaultAzureMessageHandler implements AzureMessageHandler {
 
     /**
      * Get the handler method.
+     *
      * @return the handler method.
      */
     public InvocableHandlerMethod getHandlerMethod() {
@@ -62,8 +66,7 @@ public class DefaultAzureMessageHandler implements AzureMessageHandler {
     }
 
     /**
-     * Set the {@link InvocableHandlerMethod} to use to invoke the method
-     * processing an incoming {@link Message}.
+     * Set the {@link InvocableHandlerMethod} to use to invoke the method processing an incoming {@link Message}.
      *
      * @param handlerMethod InvocableHandlerMethod
      */

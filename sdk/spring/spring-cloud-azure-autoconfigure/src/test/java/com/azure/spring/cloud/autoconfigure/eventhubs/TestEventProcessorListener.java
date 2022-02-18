@@ -4,9 +4,9 @@
 package com.azure.spring.cloud.autoconfigure.eventhubs;
 
 import com.azure.messaging.eventhubs.models.EventContext;
-import com.azure.spring.service.eventhubs.processor.RecordEventProcessingListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsRecordEventMessageListener;
 
-public class TestEventProcessorListener implements RecordEventProcessingListener {
+public class TestEventProcessorListener implements EventHubsRecordEventMessageListener {
 
     @Override
     public void onEvent(EventContext eventContext) {

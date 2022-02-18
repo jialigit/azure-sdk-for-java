@@ -3,7 +3,7 @@
 
 package com.azure.spring.messaging.endpoint;
 
-import com.azure.spring.messaging.config.AzureListenerConfigurer;
+import com.azure.spring.messaging.annotation.AzureListenerConfigurer;
 import com.azure.spring.messaging.container.MessageListenerContainer;
 
 /**

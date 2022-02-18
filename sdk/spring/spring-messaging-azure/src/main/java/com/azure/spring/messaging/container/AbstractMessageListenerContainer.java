@@ -9,16 +9,27 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.beans.factory.DisposableBean;
 
-abstract class AbstractListenerContainer implements BeanNameAware, DisposableBean, MessageListenerContainer {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractListenerContainer.class);
+/**
+ * The base implementation for the {@link MessageListenerContainer}.
+ */
+public abstract class AbstractMessageListenerContainer implements MessageListenerContainer, BeanNameAware,
+    DisposableBean {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractMessageListenerContainer.class);
+
     private final Object lifecycleMonitor = new Object();
+
     private String destination;
+
     private String group;
+
+
     private AzureMessageHandler messageHandler;
 
     //Settings that are changed at runtime
     private boolean active;
-    private boolean running;
+
+    private volatile boolean running = false;
+
     private String beanName;
 
     protected abstract void doStart();
@@ -42,11 +53,13 @@ abstract class AbstractListenerContainer implements BeanNameAware, DisposableBea
             this.getLifecycleMonitor().notifyAll();
         }
         doStart();
+        this.active = true;
     }
 
     @Override
     public void stop() {
         LOG.debug("Stopping container with name {}", getBeanName());
+
         synchronized (this.getLifecycleMonitor()) {
             this.running = false;
             this.getLifecycleMonitor().notifyAll();
@@ -62,7 +75,7 @@ abstract class AbstractListenerContainer implements BeanNameAware, DisposableBea
     }
 
     @Override
-    public void destroy() {
+    public void destroy() throws Exception {
         synchronized (this.lifecycleMonitor) {
             stop();
             this.active = false;
@@ -83,24 +96,6 @@ abstract class AbstractListenerContainer implements BeanNameAware, DisposableBea
         return lifecycleMonitor;
     }
 
-    public String getDestination() {
-        return destination;
-    }
-
-    @Override
-    public void setDestination(String destination) {
-        this.destination = destination;
-    }
-
-    public String getGroup() {
-        return group;
-    }
-
-    @Override
-    public void setGroup(String group) {
-        this.group = group;
-    }
-
     @Override
     public int getPhase() {
         return 0;
@@ -114,5 +109,26 @@ abstract class AbstractListenerContainer implements BeanNameAware, DisposableBea
     @Override
     public void setMessageHandler(AzureMessageHandler messageHandler) {
         this.messageHandler = messageHandler;
+    }
+
+    @Override
+    public void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+    public void setGroup(String group) {
+        this.group = group;
+    }
+
+    public String getDestination() {
+        return destination;
+    }
+
+    public String getGroup() {
+        return group;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

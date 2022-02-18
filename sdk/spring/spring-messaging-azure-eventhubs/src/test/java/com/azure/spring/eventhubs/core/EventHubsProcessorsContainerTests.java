@@ -4,9 +4,12 @@
 package com.azure.spring.eventhubs.core;
 
 import com.azure.messaging.eventhubs.EventProcessorClient;
+import com.azure.spring.eventhubs.core.listener.EventHubsMessageListenerContainer;
 import com.azure.spring.eventhubs.core.processor.EventHubsProcessorFactory;
-import com.azure.spring.service.eventhubs.processor.EventProcessingListener;
-import com.azure.spring.service.eventhubs.processor.RecordEventProcessingListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventListenerContainerSupport;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventMessageListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsRecordEventMessageListener;
+import com.azure.spring.service.eventhubs.processor.consumer.EventHubsInitializationContextConsumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,9 +37,10 @@ class EventHubsProcessorsContainerTests {
     @Mock
     private EventProcessorClient anotherEventProcessorClient;
 
-    private EventHubsProcessorContainer processorContainer;
-    private final RecordEventProcessingListener listener = eventContext -> { };
-
+    private EventHubsMessageListenerContainer processorContainer;
+    private final EventHubsRecordEventMessageListener listener = eventContext -> {
+    };
+    private EventHubsEventListenerContainerSupport listenerContainerSupport;
     private AutoCloseable closeable;
     private final String consumerGroup = "consumer-group";
     private final String anotherConsumerGroup = "consumer-group2";
@@ -46,14 +50,24 @@ class EventHubsProcessorsContainerTests {
     @BeforeEach
     void setUp() {
         this.closeable = MockitoAnnotations.openMocks(this);
-        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(consumerGroup), isA(EventProcessingListener.class)))
+        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(consumerGroup),
+            isA(EventHubsEventMessageListener.class), isA(EventHubsEventListenerContainerSupport.class)))
             .thenReturn(this.oneEventProcessorClient);
-        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(anotherConsumerGroup), isA(EventProcessingListener.class)))
+        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(anotherConsumerGroup),
+            isA(EventHubsEventMessageListener.class), isA(EventHubsEventListenerContainerSupport.class)))
             .thenReturn(this.anotherEventProcessorClient);
 
-        this.processorContainer = new EventHubsProcessorContainer(mockProcessorFactory);
+        this.processorContainer = new EventHubsMessageListenerContainer(mockProcessorFactory);
         doNothing().when(this.oneEventProcessorClient).stop();
         doNothing().when(this.oneEventProcessorClient).start();
+
+        listenerContainerSupport =
+            new EventHubsEventListenerContainerSupport() {
+                @Override
+                public EventHubsInitializationContextConsumer getInitializationContextConsumer() {
+                    return EventHubsEventListenerContainerSupport.super.getInitializationContextConsumer();
+                }
+            };
     }
 
     @AfterEach
@@ -63,7 +77,7 @@ class EventHubsProcessorsContainerTests {
 
     @Test
     void testSubscribe() {
-        this.processorContainer.subscribe(this.destination, this.consumerGroup, this.listener);
+        this.processorContainer.subscribe(this.destination, this.consumerGroup, this.listener, listenerContainerSupport);
 
         verifySubscriberCreatorCalled();
         verify(this.oneEventProcessorClient, times(1)).start();
@@ -71,10 +85,12 @@ class EventHubsProcessorsContainerTests {
 
     @Test
     void testSubscribeTwice() {
-        EventProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.consumerGroup, this.listener);
+        EventProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination,
+            this.consumerGroup, this.listener, listenerContainerSupport);
         verify(this.oneEventProcessorClient, times(1)).start();
 
-        EventProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.consumerGroup, this.listener);
+        EventProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination,
+            this.consumerGroup, this.listener, listenerContainerSupport);
 
         Assertions.assertEquals(processorClient1, processorClient2);
         verifySubscriberCreatorCalled();
@@ -84,10 +100,12 @@ class EventHubsProcessorsContainerTests {
     @Test
     void testSubscribeWithAnotherGroup() {
 
-        EventProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.consumerGroup, this.listener);
+        EventProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination,
+            this.consumerGroup, this.listener, listenerContainerSupport);
         verify(this.oneEventProcessorClient, times(1)).start();
 
-        EventProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.anotherConsumerGroup, this.listener);
+        EventProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination,
+            this.anotherConsumerGroup, this.listener, listenerContainerSupport);
         Assertions.assertNotEquals(processorClient1, processorClient2);
 
         verifySubscriberCreatorCalled();
@@ -97,9 +115,9 @@ class EventHubsProcessorsContainerTests {
     }
 
     private void verifySubscriberCreatorCalled() {
-        verify(this.mockProcessorFactory, atLeastOnce()).createProcessor(anyString(), anyString(), isA(EventProcessingListener.class));
+        verify(this.mockProcessorFactory, atLeastOnce()).createProcessor(anyString(), anyString(),
+            isA(EventHubsEventMessageListener.class), isA(EventHubsEventListenerContainerSupport.class));
     }
-
 
 
 }

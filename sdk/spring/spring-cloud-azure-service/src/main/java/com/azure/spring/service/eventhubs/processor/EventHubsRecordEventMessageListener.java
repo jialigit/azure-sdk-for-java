@@ -7,9 +7,9 @@ package com.azure.spring.service.eventhubs.processor;
 import com.azure.messaging.eventhubs.models.EventContext;
 
 /**
- * A listener to process Event Hub events.
+ * A listener to process Event Hub record events.
  */
-public interface RecordEventProcessingListener extends EventProcessingListener {
+public interface EventHubsRecordEventMessageListener extends EventHubsEventMessageListener {
 
     /**
      * The event processing callback.

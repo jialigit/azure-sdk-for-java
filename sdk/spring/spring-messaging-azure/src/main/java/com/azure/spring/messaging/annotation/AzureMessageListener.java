@@ -3,8 +3,7 @@
 
 package com.azure.spring.messaging.annotation;
 
-import com.azure.spring.messaging.config.AzureListenerAnnotationBeanPostProcessor;
-import com.azure.spring.messaging.container.ListenerContainerFactory;
+import com.azure.spring.messaging.container.MessageListenerContainerFactory;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 
 import java.lang.annotation.ElementType;
@@ -17,7 +16,7 @@ import java.lang.annotation.Repeatable;
 /**
  * Annotation that marks a method to be the target of a Azure message listener on the
  * specified {@link #destination}. The {@link #containerFactory} identifies the
- * {@link ListenerContainerFactory} to use to build
+ * {@link MessageListenerContainerFactory} to use to build
  * the Azure listener container. If not set, a <em>default</em> container factory is
  * assumed to be available with a bean name of {@code azureListenerContainerFactory}
  * unless an explicit default has been provided through configuration.
@@ -66,7 +65,7 @@ public @interface AzureMessageListener {
     String id() default "";
 
     /**
-     * The bean name of the {@link ListenerContainerFactory}
+     * The bean name of the {@link MessageListenerContainerFactory}
      * to use to create the message listener container responsible for serving this endpoint.
      * <p>If not specified, the default container factory is used, if any.
      * @return String

@@ -6,7 +6,9 @@ package com.azure.spring.eventhubs.core.processor;
 import com.azure.messaging.eventhubs.CheckpointStore;
 import com.azure.messaging.eventhubs.EventProcessorClient;
 import com.azure.spring.eventhubs.core.properties.NamespaceProperties;
-import com.azure.spring.service.eventhubs.processor.RecordEventProcessingListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventListenerContainerSupport;
+import com.azure.spring.service.eventhubs.processor.EventHubsRecordEventMessageListener;
+import com.azure.spring.service.eventhubs.processor.consumer.EventHubsInitializationContextConsumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +22,8 @@ class DefaultEventHubsNamespaceProcessorFactoryTests {
     private final String eventHubName = "eventHub";
     private final String consumerGroup = "group";
     private final String anotherConsumerGroup = "group2";
-    private final RecordEventProcessingListener listener = eventContext -> { };
+    private final EventHubsRecordEventMessageListener listener = eventContext -> { };
+    private EventHubsEventListenerContainerSupport listenerContainerSupport;
     private int processorAddedTimes = 0;
 
     @BeforeEach
@@ -36,11 +39,18 @@ class DefaultEventHubsNamespaceProcessorFactoryTests {
                 processorAddedTimes++;
             }
         });
+
+        listenerContainerSupport = new EventHubsEventListenerContainerSupport() {
+            @Override
+            public EventHubsInitializationContextConsumer getInitializationContextConsumer() {
+                return EventHubsEventListenerContainerSupport.super.getInitializationContextConsumer();
+            }
+        };
     }
 
     @Test
     void testGetEventProcessorClient() {
-        EventProcessorClient processorClient = processorFactory.createProcessor(eventHubName, consumerGroup, listener);
+        EventProcessorClient processorClient = processorFactory.createProcessor(eventHubName, consumerGroup, listener, listenerContainerSupport);
 
         assertNotNull(processorClient);
         assertEquals(1, processorAddedTimes);
@@ -48,19 +58,19 @@ class DefaultEventHubsNamespaceProcessorFactoryTests {
 
     @Test
     void testCreateEventProcessorClientTwice() {
-        EventProcessorClient client = processorFactory.createProcessor(eventHubName, consumerGroup, this.listener);
+        EventProcessorClient client = processorFactory.createProcessor(eventHubName, consumerGroup, this.listener, listenerContainerSupport);
         assertNotNull(client);
 
-        processorFactory.createProcessor(eventHubName, consumerGroup, this.listener);
+        processorFactory.createProcessor(eventHubName, consumerGroup, this.listener, listenerContainerSupport);
         assertEquals(1, processorAddedTimes);
     }
 
     @Test
     void testRecreateEventProcessorClient() throws Exception {
-        final EventProcessorClient client = processorFactory.createProcessor(eventHubName, consumerGroup, this.listener);
+        final EventProcessorClient client = processorFactory.createProcessor(eventHubName, consumerGroup, this.listener, listenerContainerSupport);
         assertNotNull(client);
 
-        EventProcessorClient anotherClient = processorFactory.createProcessor(eventHubName, anotherConsumerGroup, this.listener);
+        EventProcessorClient anotherClient = processorFactory.createProcessor(eventHubName, anotherConsumerGroup, this.listener, listenerContainerSupport);
         assertNotNull(anotherClient);
         assertEquals(2, processorAddedTimes);
     }

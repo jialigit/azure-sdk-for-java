@@ -9,7 +9,8 @@ import com.azure.spring.messaging.PropertiesSupplier;
 import com.azure.spring.messaging.ConsumerIdentifier;
 import com.azure.spring.service.implementation.servicebus.factory.ServiceBusProcessorClientBuilderFactory;
 import com.azure.spring.service.implementation.servicebus.factory.ServiceBusSessionProcessorClientBuilderFactory;
-import com.azure.spring.service.servicebus.processor.MessageProcessingListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListenerContainerSupport;
 import com.azure.spring.service.servicebus.properties.ServiceBusEntityType;
 import com.azure.spring.servicebus.core.properties.NamespaceProperties;
 import com.azure.spring.servicebus.core.properties.ProcessorProperties;
@@ -84,21 +85,24 @@ public final class DefaultServiceBusNamespaceProcessorFactory implements Service
     }
 
     @Override
-    public ServiceBusProcessorClient createProcessor(String queue, MessageProcessingListener messageProcessingListener) {
-        return doCreateProcessor(queue, null, messageProcessingListener,
+    public ServiceBusProcessorClient createProcessor(String queue,  ServiceBusMessageListener processingListener,
+                                                     ServiceBusMessageListenerContainerSupport listenerContainerSupport) {
+        return doCreateProcessor(queue, null, processingListener, listenerContainerSupport,
             this.propertiesSupplier.getProperties(new ConsumerIdentifier(queue)));
     }
 
     @Override
     public ServiceBusProcessorClient createProcessor(String topic,
                                                      String subscription,
-                                                     MessageProcessingListener messageProcessingListener) {
-        return doCreateProcessor(topic, subscription, messageProcessingListener,
+                                                     ServiceBusMessageListener processingListener,
+                                                     ServiceBusMessageListenerContainerSupport listenerContainerSupport) {
+        return doCreateProcessor(topic, subscription, processingListener, listenerContainerSupport,
             this.propertiesSupplier.getProperties(new ConsumerIdentifier(topic, subscription)));
     }
 
     private ServiceBusProcessorClient doCreateProcessor(String name, String subscription,
-                                                        MessageProcessingListener listener,
+                                                        ServiceBusMessageListener processingListener,
+                                                        ServiceBusMessageListenerContainerSupport listenerContainerSupport,
                                                         @Nullable ProcessorProperties properties) {
         ConsumerIdentifier key = new ConsumerIdentifier(name, subscription);
 
@@ -116,13 +120,14 @@ public final class DefaultServiceBusNamespaceProcessorFactory implements Service
             ServiceBusProcessorClient client;
             //TODO(yiliu6): whether to use shared ServiceBusClientBuilder
             if (Boolean.TRUE.equals(processorProperties.getSessionEnabled())) {
+
                 ServiceBusSessionProcessorClientBuilderFactory factory =
-                    new ServiceBusSessionProcessorClientBuilderFactory(processorProperties, listener);
+                    new ServiceBusSessionProcessorClientBuilderFactory(processorProperties, processingListener, listenerContainerSupport);
                 factory.setSpringIdentifier(AzureSpringIdentifier.AZURE_SPRING_INTEGRATION_SERVICE_BUS);
                 client = factory.build().buildProcessorClient();
             } else {
                 ServiceBusProcessorClientBuilderFactory factory =
-                    new ServiceBusProcessorClientBuilderFactory(processorProperties, listener);
+                    new ServiceBusProcessorClientBuilderFactory(processorProperties, processingListener, listenerContainerSupport);
                 factory.setSpringIdentifier(AzureSpringIdentifier.AZURE_SPRING_INTEGRATION_SERVICE_BUS);
                 client = factory.build().buildProcessorClient();
             }

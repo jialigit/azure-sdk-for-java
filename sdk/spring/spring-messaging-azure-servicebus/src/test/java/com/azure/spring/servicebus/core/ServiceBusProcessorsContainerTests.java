@@ -4,8 +4,11 @@
 package com.azure.spring.servicebus.core;
 
 import com.azure.messaging.servicebus.ServiceBusProcessorClient;
-import com.azure.spring.service.servicebus.processor.MessageProcessingListener;
-import com.azure.spring.service.servicebus.processor.RecordMessageProcessingListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListenerContainerSupport;
+import com.azure.spring.service.servicebus.processor.ServiceBusRecordMessageListener;
+import com.azure.spring.service.servicebus.processor.consumer.ServiceBusErrorContextConsumer;
+import com.azure.spring.servicebus.core.listener.ServiceBusMessageListenerContainer;
 import com.azure.spring.servicebus.core.processor.ServiceBusProcessorFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -31,9 +34,9 @@ public class ServiceBusProcessorsContainerTests {
     @Mock
     private ServiceBusProcessorClient anotherProcessorClient;
 
-    private ServiceBusProcessorContainer processorContainer;
-    private final RecordMessageProcessingListener listener = messageContext -> { };
-
+    private ServiceBusMessageListenerContainer processorContainer;
+    private final ServiceBusRecordMessageListener listener = messageContext -> { };
+    private ServiceBusMessageListenerContainerSupport listenerContainerSupport;
     private AutoCloseable closeable;
     private final String subscription = "subscription";
     private final String anotherSubscription = "subscription2";
@@ -42,15 +45,22 @@ public class ServiceBusProcessorsContainerTests {
     @BeforeEach
     void setUp() {
         this.closeable = MockitoAnnotations.openMocks(this);
-        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(subscription), isA(MessageProcessingListener.class)))
+        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(subscription), isA(ServiceBusMessageListener.class), isA(ServiceBusMessageListenerContainerSupport.class)))
             .thenReturn(this.oneProcessorClient);
-        when(this.mockProcessorFactory.createProcessor(eq(destination), isA(MessageProcessingListener.class)))
+        when(this.mockProcessorFactory.createProcessor(eq(destination), isA(ServiceBusMessageListener.class), isA(ServiceBusMessageListenerContainerSupport.class)))
             .thenReturn(this.oneProcessorClient);
-        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(anotherSubscription), isA(MessageProcessingListener.class)))
+        when(this.mockProcessorFactory.createProcessor(eq(destination), eq(anotherSubscription), isA(ServiceBusMessageListener.class), isA(ServiceBusMessageListenerContainerSupport.class)))
             .thenReturn(this.anotherProcessorClient);
-        this.processorContainer = new ServiceBusProcessorContainer(mockProcessorFactory);
+        this.processorContainer = new ServiceBusMessageListenerContainer(mockProcessorFactory);
         doNothing().when(this.oneProcessorClient).stop();
         doNothing().when(this.oneProcessorClient).start();
+
+        listenerContainerSupport = new ServiceBusMessageListenerContainerSupport() {
+            @Override
+            public ServiceBusErrorContextConsumer getErrorContextConsumer() {
+                return ServiceBusMessageListenerContainerSupport.super.getErrorContextConsumer();
+            }
+        };
     }
 
     @AfterEach
@@ -60,7 +70,7 @@ public class ServiceBusProcessorsContainerTests {
 
     @Test
     void testSubscribeQueue() {
-        this.processorContainer.subscribe(this.destination, this.listener);
+        this.processorContainer.subscribe(this.destination, this.listener, listenerContainerSupport);
 
         verifySubscriberQueueCreatorCalled();
         verify(this.oneProcessorClient, times(1)).start();
@@ -68,10 +78,10 @@ public class ServiceBusProcessorsContainerTests {
 
     @Test
     void testSubscribeQueueTwice() {
-        ServiceBusProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.listener);
+        ServiceBusProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.listener, listenerContainerSupport);
         verify(this.oneProcessorClient, times(1)).start();
 
-        ServiceBusProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.listener);
+        ServiceBusProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.listener, listenerContainerSupport);
 
         Assertions.assertEquals(processorClient1, processorClient2);
         verifySubscriberQueueCreatorCalled();
@@ -80,7 +90,7 @@ public class ServiceBusProcessorsContainerTests {
 
     @Test
     void testSubscribeTopic() {
-        this.processorContainer.subscribe(this.destination, this.subscription, this.listener);
+        this.processorContainer.subscribe(this.destination, this.subscription, this.listener, listenerContainerSupport);
 
         verifySubscriberTopicCreatorCalled();
         verify(this.oneProcessorClient, times(1)).start();
@@ -88,10 +98,10 @@ public class ServiceBusProcessorsContainerTests {
 
     @Test
     void testSubscribeTopicTwice() {
-        ServiceBusProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.subscription, this.listener);
+        ServiceBusProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.subscription, this.listener, listenerContainerSupport);
         verify(this.oneProcessorClient, times(1)).start();
 
-        ServiceBusProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.subscription, this.listener);
+        ServiceBusProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.subscription, this.listener, listenerContainerSupport);
 
         Assertions.assertEquals(processorClient1, processorClient2);
         verifySubscriberTopicCreatorCalled();
@@ -101,10 +111,10 @@ public class ServiceBusProcessorsContainerTests {
     @Test
     void testSubscribeWithAnotherSubscription() {
 
-        ServiceBusProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.subscription, this.listener);
+        ServiceBusProcessorClient processorClient1 = this.processorContainer.subscribe(this.destination, this.subscription, this.listener, listenerContainerSupport);
         verify(this.oneProcessorClient, times(1)).start();
 
-        ServiceBusProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.anotherSubscription, this.listener);
+        ServiceBusProcessorClient processorClient2 = this.processorContainer.subscribe(this.destination, this.anotherSubscription, this.listener, listenerContainerSupport);
         Assertions.assertNotEquals(processorClient1, processorClient2);
 
         verifySubscriberTopicCreatorCalled();
@@ -114,11 +124,11 @@ public class ServiceBusProcessorsContainerTests {
     }
 
     private void verifySubscriberTopicCreatorCalled() {
-        verify(this.mockProcessorFactory, atLeastOnce()).createProcessor(anyString(), anyString(), isA(MessageProcessingListener.class));
+        verify(this.mockProcessorFactory, atLeastOnce()).createProcessor(anyString(), anyString(), isA(ServiceBusMessageListener.class), isA(ServiceBusMessageListenerContainerSupport.class));
     }
 
     private void verifySubscriberQueueCreatorCalled() {
-        verify(this.mockProcessorFactory, atLeastOnce()).createProcessor(anyString(), isA(MessageProcessingListener.class));
+        verify(this.mockProcessorFactory, atLeastOnce()).createProcessor(anyString(), isA(ServiceBusMessageListener.class), isA(ServiceBusMessageListenerContainerSupport.class));
     }
 
 }

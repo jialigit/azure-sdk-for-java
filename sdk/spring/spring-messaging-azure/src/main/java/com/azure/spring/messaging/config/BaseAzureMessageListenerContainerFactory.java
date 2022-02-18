@@ -1,26 +1,21 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-package com.azure.spring.messaging.container;
+package com.azure.spring.messaging.config;
 
+import com.azure.spring.messaging.container.AbstractMessageListenerContainer;
+import com.azure.spring.messaging.container.MessageListenerContainerFactory;
 import com.azure.spring.messaging.endpoint.AbstractAzureListenerEndpoint;
 import com.azure.spring.messaging.endpoint.AzureListenerEndpoint;
-import com.azure.spring.messaging.core.SubscribeByGroupOperation;
 
 /**
- * Base {@link ListenerContainerFactory} for Spring's base container implementation.
+ * Base {@link MessageListenerContainerFactory} for Spring's base container implementation.
  *
  * @param <C> the container type
  * @see AbstractAzureListenerEndpoint
  */
-abstract class AbstractAzureListenerContainerFactory<C extends AbstractListenerContainer>
-        implements ListenerContainerFactory<C> {
-
-    private final SubscribeByGroupOperation subscribeOperation;
-
-    protected AbstractAzureListenerContainerFactory(SubscribeByGroupOperation subscribeOperation) {
-        this.subscribeOperation = subscribeOperation;
-    }
+public abstract class BaseAzureMessageListenerContainerFactory<C extends AbstractMessageListenerContainer>
+    implements MessageListenerContainerFactory<C> {
 
     @Override
     public C createListenerContainer(AzureListenerEndpoint endpoint) {
@@ -41,13 +36,10 @@ abstract class AbstractAzureListenerContainerFactory<C extends AbstractListenerC
      * Further initialize the specified container.
      * <p>Subclasses can inherit from this method to apply extra
      * configuration if necessary.
+     *
      * @param instance instance
      */
     protected void initializeContainer(C instance) {
-    }
-
-    public SubscribeByGroupOperation getSubscribeOperation() {
-        return subscribeOperation;
     }
 
 }

@@ -4,7 +4,7 @@
 package com.azure.spring.cloud.autoconfigure.eventhubs;
 
 import com.azure.messaging.eventhubs.CheckpointStore;
-import com.azure.spring.eventhubs.core.EventHubsProcessorContainer;
+import com.azure.spring.eventhubs.core.listener.EventHubsMessageListenerContainer;
 import com.azure.spring.eventhubs.core.processor.EventHubsProcessorFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -32,7 +32,7 @@ class AzureEventHubsProcessorContainerConfigurationTests {
     @Test
     void withoutEventHubsProcessorContainerShouldNotConfigure() {
         this.contextRunner
-            .withClassLoader(new FilteredClassLoader(EventHubsProcessorContainer.class))
+            .withClassLoader(new FilteredClassLoader(EventHubsMessageListenerContainer.class))
             .withPropertyValues(
                 "spring.cloud.azure.eventhubs.namespace=test-namespace"
             )
@@ -66,7 +66,7 @@ class AzureEventHubsProcessorContainerConfigurationTests {
             .withUserConfiguration(AzureEventHubsPropertiesTestConfiguration.class)
             .withBean(CheckpointStore.class, TestCheckpointStore::new)
             .run(context -> {
-                assertThat(context).hasSingleBean(EventHubsProcessorContainer.class);
+                assertThat(context).hasSingleBean(EventHubsMessageListenerContainer.class);
                 assertThat(context).hasSingleBean(EventHubsProcessorFactory.class);
                 assertThat(context).hasSingleBean(AzureEventHubsMessagingAutoConfiguration.ProcessorContainerConfiguration.class);
             });

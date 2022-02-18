@@ -8,8 +8,8 @@ import com.azure.spring.cloud.stream.binder.eventhubs.properties.EventHubsConsum
 import com.azure.spring.cloud.stream.binder.eventhubs.properties.EventHubsExtendedBindingProperties;
 import com.azure.spring.cloud.stream.binder.eventhubs.properties.EventHubsProducerProperties;
 import com.azure.spring.cloud.stream.binder.eventhubs.provisioning.EventHubsChannelProvisioner;
-import com.azure.spring.eventhubs.core.EventHubsProcessorContainer;
 import com.azure.spring.eventhubs.core.EventHubsTemplate;
+import com.azure.spring.eventhubs.core.listener.EventHubsMessageListenerContainer;
 import com.azure.spring.eventhubs.core.processor.DefaultEventHubsNamespaceProcessorFactory;
 import com.azure.spring.eventhubs.core.producer.DefaultEventHubsNamespaceProducerFactory;
 import com.azure.spring.eventhubs.core.properties.NamespaceProperties;
@@ -70,7 +70,7 @@ public class EventHubsMessageChannelBinder extends
     private NamespaceProperties namespaceProperties;
     private EventHubsTemplate eventHubsTemplate;
     private CheckpointStore checkpointStore;
-    private EventHubsProcessorContainer processorContainer;
+    private EventHubsMessageListenerContainer processorContainer;
     private final InstrumentationManager instrumentationManager = new DefaultInstrumentationManager();
     private EventHubsExtendedBindingProperties bindingProperties = new EventHubsExtendedBindingProperties();
     private final Map<String, ExtendedProducerProperties<EventHubsProducerProperties>>
@@ -216,7 +216,7 @@ public class EventHubsMessageChannelBinder extends
         return this.eventHubsTemplate;
     }
 
-    private EventHubsProcessorContainer getProcessorContainer() {
+    private EventHubsMessageListenerContainer getProcessorContainer() {
         if (this.processorContainer == null) {
             DefaultEventHubsNamespaceProcessorFactory factory = new DefaultEventHubsNamespaceProcessorFactory(
                 this.checkpointStore, this.namespaceProperties, getProcessorPropertiesSupplier());
@@ -226,7 +226,7 @@ public class EventHubsMessageChannelBinder extends
                 instrumentation.markUp();
                 instrumentationManager.addHealthInstrumentation(instrumentation);
             });
-            this.processorContainer = new EventHubsProcessorContainer(factory);
+            this.processorContainer = new EventHubsMessageListenerContainer(factory);
         }
         return this.processorContainer;
     }

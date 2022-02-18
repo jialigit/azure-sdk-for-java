@@ -5,7 +5,6 @@ package com.azure.spring.integration.eventhubs.inbound;
 
 import com.azure.messaging.eventhubs.EventData;
 import com.azure.messaging.eventhubs.models.EventBatchContext;
-import com.azure.spring.eventhubs.core.EventHubsProcessorContainer;
 import com.azure.spring.integration.instrumentation.DefaultInstrumentationManager;
 import com.azure.spring.messaging.checkpoint.CheckpointConfig;
 import com.azure.spring.messaging.converter.AbstractAzureMessageConverter;

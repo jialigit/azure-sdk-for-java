@@ -4,7 +4,8 @@
 package com.azure.spring.eventhubs.core.processor;
 
 import com.azure.messaging.eventhubs.EventProcessorClient;
-import com.azure.spring.service.eventhubs.processor.EventProcessingListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventListenerContainerSupport;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventMessageListener;
 
 /**
  * The strategy to produce {@link EventProcessorClient} instance.
@@ -16,10 +17,11 @@ public interface EventHubsProcessorFactory {
      * consumer group.
      * @param eventHub the event hub to consume events from
      * @param consumerGroup the consumer group
-     * @param listener the {@link EventProcessingListener} to consume events with
+     * @param listener the {@link EventHubsEventMessageListener} to consume events with
+     * @param listenerContainerSupport
      * @return the EventProcessorClient.
      */
-    EventProcessorClient createProcessor(String eventHub, String consumerGroup, EventProcessingListener listener);
+    EventProcessorClient createProcessor(String eventHub, String consumerGroup, EventHubsEventMessageListener listener, EventHubsEventListenerContainerSupport listenerContainerSupport);
 
     /**
      * Add a listener for this factory.

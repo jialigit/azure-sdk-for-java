@@ -5,7 +5,9 @@ package com.azure.spring.servicebus.core.processor;
 
 
 import com.azure.messaging.servicebus.ServiceBusProcessorClient;
-import com.azure.spring.service.servicebus.processor.MessageProcessingListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListenerContainerSupport;
+import com.azure.spring.service.servicebus.processor.ServiceBusRecordMessageListener;
 
 /**
  * The strategy to produce {@link ServiceBusProcessorClient} instance.
@@ -15,11 +17,13 @@ public interface ServiceBusProcessorFactory {
     /**
      * Create a {@link ServiceBusProcessorClient} to consume events from the specified queue.
      * @param queue The queue name.
-     * @param messageProcessingListener Callback processor listener to be registered on service bus processor client.
+     * @param processingListener Callback processor listener to be registered on service bus processor client.
+     * @param listenerContainerSupport
      * @return ServiceBusProcessorClient queue processor client
      */
     ServiceBusProcessorClient createProcessor(String queue,
-                                              MessageProcessingListener messageProcessingListener);
+                                              ServiceBusMessageListener processingListener,
+                                              ServiceBusMessageListenerContainerSupport listenerContainerSupport);
 
     /**
      * Create a {@link ServiceBusProcessorClient} to consume events from the specified topic in the context of the given
@@ -27,12 +31,14 @@ public interface ServiceBusProcessorFactory {
      *
      * @param topic The topic.
      * @param subscription The subscription.
-     * @param messageProcessingListener The callback processor listener to be registered on service bus processor client.
+     * @param processingListener The callback processor listener to be registered on service bus processor client.
+     * @param listenerContainerSupport
      * @return subscription client
      */
     ServiceBusProcessorClient createProcessor(String topic,
                                               String subscription,
-                                              MessageProcessingListener messageProcessingListener);
+                                              ServiceBusMessageListener processingListener,
+                                              ServiceBusMessageListenerContainerSupport listenerContainerSupport);
 
     /**
      * Add a listener for this factory.

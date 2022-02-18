@@ -9,9 +9,9 @@ import com.azure.spring.service.servicebus.processor.consumer.ServiceBusErrorCon
 import java.util.function.Consumer;
 
 /**
- * A listener to process Service Bus messages.
+ * Service Bus message listener container support.
  */
-public interface MessageProcessingListener {
+public interface ServiceBusMessageListenerContainerSupport {
 
     /**
      * Return the {@link Consumer} of {@link ServiceBusErrorContext} for Event Hubs by default.

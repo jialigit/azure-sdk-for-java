@@ -14,32 +14,38 @@ import com.azure.spring.service.eventhubs.processor.consumer.EventHubsInitializa
 import java.util.function.Consumer;
 
 /**
- * A listener to process Event Hub events.
+ * Event Hubs Event processing listener container support.
  */
-public interface EventProcessingListener {
+public interface EventHubsEventListenerContainerSupport {
 
     /**
      * Return the {@link Consumer} of {@link InitializationContext} for Event Hubs by default.
+     *
      * @return the initialization context consumer.
      */
     default EventHubsInitializationContextConsumer getInitializationContextConsumer() {
-        return initializationContextConsumer -> { };
+        return initializationContextConsumer -> {
+        };
     }
 
     /**
      * Return the {@link Consumer} of {@link CloseContext} for Event Hubs by default.
+     *
      * @return the close context consumer.
      */
     default EventHubsCloseContextConsumer getCloseContextConsumer() {
-        return closeContext -> { };
+        return closeContext -> {
+        };
     }
 
     /**
      * Return the {@link Consumer} of {@link ErrorContext} for Event Hubs by default.
+     *
      * @return the error context consumer.
      */
     default EventHubsErrorContextConsumer getErrorContextConsumer() {
-        return errorContext -> { };
+        return errorContext -> {
+        };
     }
 
 }

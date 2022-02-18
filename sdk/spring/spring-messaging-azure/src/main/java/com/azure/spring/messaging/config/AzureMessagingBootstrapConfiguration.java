@@ -3,6 +3,7 @@
 
 package com.azure.spring.messaging.config;
 
+import com.azure.spring.messaging.annotation.AzureListenerAnnotationBeanPostProcessor;
 import com.azure.spring.messaging.annotation.AzureMessageListener;
 import com.azure.spring.messaging.annotation.EnableAzureMessaging;
 import org.springframework.beans.factory.config.BeanDefinition;

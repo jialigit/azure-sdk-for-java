@@ -4,7 +4,9 @@
 package com.azure.spring.servicebus.core.processor;
 
 import com.azure.messaging.servicebus.ServiceBusProcessorClient;
-import com.azure.spring.service.servicebus.processor.RecordMessageProcessingListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListenerContainerSupport;
+import com.azure.spring.service.servicebus.processor.ServiceBusRecordMessageListener;
+import com.azure.spring.service.servicebus.processor.consumer.ServiceBusErrorContextConsumer;
 import com.azure.spring.servicebus.core.properties.NamespaceProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +19,8 @@ public class DefaultServiceBusNamespaceProcessorFactoryTests {
     private final String entityName = "test";
     private final String subscription = "subscription";
     private final String anotherSubscription = "subscription2";
-    private final RecordMessageProcessingListener listener = messageContext -> { };
+    private final ServiceBusRecordMessageListener listener = messageContext -> { };
+    private ServiceBusMessageListenerContainerSupport listenerContainerSupport;
     private int queueProcessorAddedTimes = 0;
     private int topicProcessorAddedTimes = 0;
 
@@ -35,11 +38,18 @@ public class DefaultServiceBusNamespaceProcessorFactoryTests {
                 topicProcessorAddedTimes++;
             }
         });
+
+        listenerContainerSupport = new ServiceBusMessageListenerContainerSupport() {
+            @Override
+            public ServiceBusErrorContextConsumer getErrorContextConsumer() {
+                return ServiceBusMessageListenerContainerSupport.super.getErrorContextConsumer();
+            }
+        };
     }
 
     @Test
     void testGetServiceBusProcessorClientForQueue() {
-        ServiceBusProcessorClient processorClient = processorFactory.createProcessor(entityName, listener);
+        ServiceBusProcessorClient processorClient = processorFactory.createProcessor(entityName, listener, listenerContainerSupport);
         assertNotNull(processorClient);
         assertEquals(0, topicProcessorAddedTimes);
         assertEquals(1, queueProcessorAddedTimes);
@@ -47,7 +57,7 @@ public class DefaultServiceBusNamespaceProcessorFactoryTests {
 
     @Test
     void testGetServiceBusProcessorClientForTopic() {
-        ServiceBusProcessorClient processorClient = processorFactory.createProcessor(entityName, subscription, listener);
+        ServiceBusProcessorClient processorClient = processorFactory.createProcessor(entityName, subscription, listener, listenerContainerSupport);
 
         assertNotNull(processorClient);
         assertEquals(1, topicProcessorAddedTimes);
@@ -56,28 +66,28 @@ public class DefaultServiceBusNamespaceProcessorFactoryTests {
 
     @Test
     void testCreateServiceBusProcessorClientQueueTwice() {
-        ServiceBusProcessorClient client = processorFactory.createProcessor(entityName, this.listener);
+        ServiceBusProcessorClient client = processorFactory.createProcessor(entityName, this.listener, listenerContainerSupport);
         assertNotNull(client);
 
-        processorFactory.createProcessor(entityName, subscription, this.listener);
+        processorFactory.createProcessor(entityName, subscription, this.listener, listenerContainerSupport);
         assertEquals(1, queueProcessorAddedTimes);
     }
 
     @Test
     void testCreateServiceBusProcessorClientTopicTwice() {
-        ServiceBusProcessorClient client = processorFactory.createProcessor(entityName, subscription, this.listener);
+        ServiceBusProcessorClient client = processorFactory.createProcessor(entityName, subscription, this.listener, listenerContainerSupport);
         assertNotNull(client);
 
-        processorFactory.createProcessor(entityName, subscription, this.listener);
+        processorFactory.createProcessor(entityName, subscription, this.listener, listenerContainerSupport);
         assertEquals(1, topicProcessorAddedTimes);
     }
 
     @Test
     void testRecreateServiceBusProcessorClient() {
-        final ServiceBusProcessorClient client = processorFactory.createProcessor(entityName, subscription, this.listener);
+        final ServiceBusProcessorClient client = processorFactory.createProcessor(entityName, subscription, this.listener, listenerContainerSupport);
         assertNotNull(client);
 
-        ServiceBusProcessorClient anotherClient = processorFactory.createProcessor(entityName, anotherSubscription, this.listener);
+        ServiceBusProcessorClient anotherClient = processorFactory.createProcessor(entityName, anotherSubscription, this.listener, listenerContainerSupport);
         assertNotNull(anotherClient);
         assertEquals(2, topicProcessorAddedTimes);
     }

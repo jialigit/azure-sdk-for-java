@@ -14,10 +14,11 @@ import com.azure.spring.integration.instrumentation.Instrumentation;
 import com.azure.spring.integration.servicebus.inbound.health.ServiceBusProcessorInstrumentation;
 import com.azure.spring.messaging.AzureHeaders;
 import com.azure.spring.messaging.checkpoint.CheckpointMode;
-import com.azure.spring.service.servicebus.processor.RecordMessageProcessingListener;
+import com.azure.spring.service.servicebus.processor.ServiceBusMessageListenerContainerSupport;
+import com.azure.spring.service.servicebus.processor.ServiceBusRecordMessageListener;
 import com.azure.spring.service.servicebus.processor.consumer.ServiceBusErrorContextConsumer;
 import com.azure.spring.service.servicebus.properties.ServiceBusEntityType;
-import com.azure.spring.servicebus.core.ServiceBusProcessorContainer;
+import com.azure.spring.servicebus.core.listener.ServiceBusMessageListenerContainer;
 import com.azure.spring.servicebus.core.ServiceBusTemplate;
 import com.azure.spring.servicebus.core.producer.DefaultServiceBusNamespaceProducerFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,6 +77,15 @@ public class ServiceBusHealthIndicatorTests {
     private static final String GROUP = "test";
     private static final String NAMESPACE_NAME = "test-namespace";
 
+    private ServiceBusMessageListenerContainerSupport listenerContainerSupport =
+        new ServiceBusMessageListenerContainerSupport() {
+        @Override
+        public ServiceBusErrorContextConsumer getErrorContextConsumer() {
+            return ServiceBusMessageListenerContainerSupport.super.getErrorContextConsumer();
+        }
+
+    };
+
     @BeforeEach
     public void init() {
         MockitoAnnotations.openMocks(this);
@@ -126,12 +136,12 @@ public class ServiceBusHealthIndicatorTests {
         prepareConsumerProperties();
         when(consumerDestination.getName()).thenReturn(ENTITY_NAME);
         binder.createConsumerEndpoint(consumerDestination, null, consumerProperties);
-        ServiceBusProcessorContainer processorContainer =
-            (ServiceBusProcessorContainer) ReflectionTestUtils.getField(binder,
+        ServiceBusMessageListenerContainer processorContainer =
+            (ServiceBusMessageListenerContainer) ReflectionTestUtils.getField(binder,
                 "processorContainer");
         TestMessageProcessingListener listener = new TestMessageProcessingListener();
         listener.setInstrumentation(binder.getInstrumentationManager().getHealthInstrumentation(Instrumentation.buildId(CONSUMER, ENTITY_NAME)));
-        processorContainer.subscribe(ENTITY_NAME, listener);
+        processorContainer.subscribe(ENTITY_NAME, listener, listenerContainerSupport);
 
         final Health health = serviceBusHealthIndicator.health();
         assertThat(health.getStatus()).isEqualTo(Status.UP);
@@ -142,12 +152,12 @@ public class ServiceBusHealthIndicatorTests {
         prepareConsumerProperties();
         when(consumerDestination.getName()).thenReturn(ENTITY_NAME);
         binder.createConsumerEndpoint(consumerDestination, null, consumerProperties);
-        ServiceBusProcessorContainer processorContainer =
-            (ServiceBusProcessorContainer) ReflectionTestUtils.getField(binder,
+        ServiceBusMessageListenerContainer processorContainer =
+            (ServiceBusMessageListenerContainer) ReflectionTestUtils.getField(binder,
                 "processorContainer");
         TestMessageProcessingListener listener = new TestMessageProcessingListener();
         listener.setInstrumentation(binder.getInstrumentationManager().getHealthInstrumentation(Instrumentation.buildId(CONSUMER, ENTITY_NAME)));
-        processorContainer.subscribe(ENTITY_NAME, listener);
+        processorContainer.subscribe(ENTITY_NAME, listener, listener);
         binder.addProcessorDownInstrumentation();
 
         final Health health = serviceBusHealthIndicator.health();
@@ -192,7 +202,7 @@ public class ServiceBusHealthIndicatorTests {
         consumerProperties.setHeaderMode(HeaderMode.embeddedHeaders);
     }
 
-    static class TestMessageProcessingListener implements RecordMessageProcessingListener {
+    static class TestMessageProcessingListener implements ServiceBusRecordMessageListener, ServiceBusMessageListenerContainerSupport{
         private Instrumentation instrumentation;
 
         @Override

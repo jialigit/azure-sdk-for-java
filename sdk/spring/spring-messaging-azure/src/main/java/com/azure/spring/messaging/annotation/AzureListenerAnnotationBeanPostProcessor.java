@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-package com.azure.spring.messaging.config;
+package com.azure.spring.messaging.annotation;
 
-import com.azure.spring.messaging.annotation.AzureMessageListener;
-import com.azure.spring.messaging.annotation.AzureMessageListeners;
-import com.azure.spring.messaging.annotation.EnableAzureMessaging;
-import com.azure.spring.messaging.container.ListenerContainerFactory;
+import com.azure.spring.messaging.config.AzureListenerEndpointRegistrar;
+import com.azure.spring.messaging.config.AzureListenerEndpointRegistry;
+import com.azure.spring.messaging.container.MessageListenerContainerFactory;
 import com.azure.spring.messaging.endpoint.MethodAzureListenerEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Bean post-processor that registers methods annotated with {@link AzureMessageListener}
  * to be invoked by a Azure message listener container created under the cover
- * by a {@link ListenerContainerFactory}
+ * by a {@link MessageListenerContainerFactory}
  * according to the attributes of the annotation.
  *
  * <p>Annotated methods can use flexible arguments as defined by {@link AzureMessageListener}.
@@ -70,23 +69,30 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AzureListenerAnnotationBeanPostProcessor
         implements MergedBeanDefinitionPostProcessor, Ordered, BeanFactoryAware, SmartInitializingSingleton {
 
+    private static final Logger LOG = LoggerFactory.getLogger(AzureListenerAnnotationBeanPostProcessor.class);
+
     /**
-     * The bean name of the default {@link ListenerContainerFactory}.
+     * The bean name of the default {@link MessageListenerContainerFactory}.
      */
     public static final String DEFAULT_AZURE_LISTENER_CONTAINER_FACTORY_BEAN_NAME = "azureListenerContainerFactory";
     public static final String DEFAULT_AZURE_LISTENER_ENDPOINT_REGISTRY_BEAN_NAME = "azureListenerEndpointRegistry";
-    private static final Logger LOG = LoggerFactory.getLogger(AzureListenerAnnotationBeanPostProcessor.class);
+    private String containerFactoryBeanName = DEFAULT_AZURE_LISTENER_CONTAINER_FACTORY_BEAN_NAME;
+
     private final MessageHandlerMethodFactoryAdapter messageHandlerMethodFactory =
         new MessageHandlerMethodFactoryAdapter();
-    private final AzureListenerEndpointRegistrar registrar = new AzureListenerEndpointRegistrar();
+
     private final AtomicInteger counter = new AtomicInteger();
+
     private final Set<Class<?>> nonAnnotatedClasses = Collections.newSetFromMap(new ConcurrentHashMap<>(64));
 
-    private String containerFactoryBeanName = DEFAULT_AZURE_LISTENER_CONTAINER_FACTORY_BEAN_NAME;
+    private final AzureListenerEndpointRegistrar registrar = new AzureListenerEndpointRegistrar();
+
     @Nullable
     private AzureListenerEndpointRegistry endpointRegistry;
+
     @Nullable
     private BeanFactory beanFactory;
+
     @Nullable
     private StringValueResolver embeddedValueResolver;
 
@@ -174,7 +180,7 @@ public class AzureListenerAnnotationBeanPostProcessor
      */
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        if (bean instanceof AopInfrastructureBean || bean instanceof ListenerContainerFactory
+        if (bean instanceof AopInfrastructureBean || bean instanceof MessageListenerContainerFactory
             || bean instanceof AzureListenerEndpointRegistry) {
             // Ignore AOP infrastructure such as scoped proxies.
             return bean;
@@ -238,16 +244,16 @@ public class AzureListenerAnnotationBeanPostProcessor
             endpoint.setConcurrency(resolve(azureMessageListener.concurrency()));
         }
 
-        ListenerContainerFactory<?> factory = null;
+        MessageListenerContainerFactory<?> factory = null;
         String containerFactoryBeanName = resolve(azureMessageListener.containerFactory());
         if (StringUtils.hasText(containerFactoryBeanName)) {
             Assert.state(this.beanFactory != null, "BeanFactory must be set to obtain container factory by bean name");
             try {
-                factory = this.beanFactory.getBean(containerFactoryBeanName, ListenerContainerFactory.class);
+                factory = this.beanFactory.getBean(containerFactoryBeanName, MessageListenerContainerFactory.class);
             } catch (NoSuchBeanDefinitionException ex) {
                 throw new BeanInitializationException(
                     "Could not register Azure listener endpoint on [" + mostSpecificMethod + "], no "
-                        + ListenerContainerFactory.class.getSimpleName() + " with id '"
+                        + MessageListenerContainerFactory.class.getSimpleName() + " with id '"
                         + containerFactoryBeanName + "' was found in the application context", ex);
             }
         }

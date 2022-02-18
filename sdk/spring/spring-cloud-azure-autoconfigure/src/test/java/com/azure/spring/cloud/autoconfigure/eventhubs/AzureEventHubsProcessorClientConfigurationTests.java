@@ -9,9 +9,8 @@ import com.azure.messaging.eventhubs.EventProcessorClient;
 import com.azure.messaging.eventhubs.EventProcessorClientBuilder;
 import com.azure.messaging.eventhubs.models.EventContext;
 import com.azure.spring.cloud.autoconfigure.TestBuilderCustomizer;
+import com.azure.spring.service.eventhubs.processor.EventHubsRecordEventMessageListener;
 import com.azure.spring.service.implementation.eventhubs.factory.EventProcessorClientBuilderFactory;
-import com.azure.spring.service.eventhubs.processor.EventProcessingListener;
-import com.azure.spring.service.eventhubs.processor.RecordEventProcessingListener;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -40,7 +39,7 @@ class AzureEventHubsProcessorClientConfigurationTests {
     @Test
     void eventHubNameAndConsumerGroupProvidedShouldConfigure() {
         contextRunner
-            .withBean(EventProcessingListener.class, TestEventProcessorListener::new)
+            .withBean(EventHubsRecordEventMessageListener.class, TestEventProcessorListener::new)
             .withBean(CheckpointStore.class, TestCheckpointStore::new)
             .withUserConfiguration(AzureEventHubsPropertiesTestConfiguration.class)
             .withPropertyValues(
@@ -60,7 +59,7 @@ class AzureEventHubsProcessorClientConfigurationTests {
     void customizerShouldBeCalled() {
         EventProcessorBuilderCustomizer customizer = new EventProcessorBuilderCustomizer();
         this.contextRunner
-            .withBean(EventProcessingListener.class, TestEventProcessorListener::new)
+            .withBean(EventHubsRecordEventMessageListener.class, TestEventProcessorListener::new)
             .withBean(CheckpointStore.class, TestCheckpointStore::new)
             .withUserConfiguration(AzureEventHubsPropertiesTestConfiguration.class)
             .withPropertyValues(
@@ -78,7 +77,7 @@ class AzureEventHubsProcessorClientConfigurationTests {
         EventProcessorBuilderCustomizer customizer = new EventProcessorBuilderCustomizer();
         OtherBuilderCustomizer otherBuilderCustomizer = new OtherBuilderCustomizer();
         this.contextRunner
-            .withBean(EventProcessingListener.class, TestEventProcessorListener::new)
+            .withBean(EventHubsRecordEventMessageListener.class, TestEventProcessorListener::new)
             .withBean(CheckpointStore.class, TestCheckpointStore::new)
             .withUserConfiguration(AzureEventHubsPropertiesTestConfiguration.class)
             .withPropertyValues(
@@ -103,7 +102,7 @@ class AzureEventHubsProcessorClientConfigurationTests {
 
     }
 
-    private static class TestEventProcessorListener implements RecordEventProcessingListener {
+    private static class TestEventProcessorListener implements EventHubsRecordEventMessageListener {
 
         @Override
         public void onEvent(EventContext eventContext) {

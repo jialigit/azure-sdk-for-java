@@ -11,8 +11,9 @@ import com.azure.spring.eventhubs.core.properties.ProcessorProperties;
 import com.azure.spring.eventhubs.core.properties.merger.ProcessorPropertiesParentMerger;
 import com.azure.spring.messaging.PropertiesSupplier;
 import com.azure.spring.messaging.ConsumerIdentifier;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventListenerContainerSupport;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventMessageListener;
 import com.azure.spring.service.implementation.eventhubs.factory.EventProcessorClientBuilderFactory;
-import com.azure.spring.service.eventhubs.processor.EventProcessingListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -96,8 +97,9 @@ public final class DefaultEventHubsNamespaceProcessorFactory implements EventHub
 
     @Override
     public EventProcessorClient createProcessor(@NonNull String eventHub, @NonNull String consumerGroup,
-                                                @NonNull EventProcessingListener listener) {
-        return doCreateProcessor(eventHub, consumerGroup, listener,
+                                                @NonNull EventHubsEventMessageListener listener,
+                                                @NonNull EventHubsEventListenerContainerSupport listenerContainerSupport) {
+        return doCreateProcessor(eventHub, consumerGroup, listener, listenerContainerSupport,
             this.propertiesSupplier.getProperties(new ConsumerIdentifier(eventHub, consumerGroup)));
     }
 
@@ -112,7 +114,8 @@ public final class DefaultEventHubsNamespaceProcessorFactory implements EventHub
     }
 
     private EventProcessorClient doCreateProcessor(@NonNull String eventHub, @NonNull String consumerGroup,
-                                                   @NonNull EventProcessingListener listener,
+                                                   @NonNull EventHubsEventMessageListener listener,
+                                                   @NonNull EventHubsEventListenerContainerSupport listenerContainerSupport,
                                                    @Nullable ProcessorProperties properties) {
         ConsumerIdentifier key = new ConsumerIdentifier(eventHub, consumerGroup);
         return processorClientMap.computeIfAbsent(key, k -> {
@@ -122,7 +125,7 @@ public final class DefaultEventHubsNamespaceProcessorFactory implements EventHub
             processorProperties.setConsumerGroup(k.getGroup());
 
             EventProcessorClientBuilderFactory factory =
-                new EventProcessorClientBuilderFactory(processorProperties, this.checkpointStore, listener);
+                new EventProcessorClientBuilderFactory(processorProperties, this.checkpointStore, listener, listenerContainerSupport);
             factory.setSpringIdentifier(AzureSpringIdentifier.AZURE_SPRING_INTEGRATION_EVENT_HUBS);
             EventProcessorClient client = factory.build().buildEventProcessorClient();
             LOGGER.info("EventProcessor created for event hub '{}' with consumer group '{}'", k.getDestination(), k.getGroup());

@@ -3,9 +3,9 @@
 
 package com.azure.spring.messaging.config;
 
+import com.azure.spring.messaging.annotation.AzureListenerAnnotationBeanPostProcessor;
 import com.azure.spring.messaging.annotation.AzureMessageListener;
 import com.azure.spring.messaging.container.MessageListenerContainer;
-import com.azure.spring.messaging.container.SimpleMessageListenerContainer;
 import com.azure.spring.messaging.endpoint.AbstractAzureListenerEndpoint;
 import com.azure.spring.messaging.endpoint.AzureListenerEndpoint;
 import com.azure.spring.messaging.endpoint.MethodAzureListenerEndpoint;
@@ -55,7 +55,7 @@ public class AzureListenerAnnotationBeanPostProcessorTests {
         assertEquals(SimpleMessageListenerTestBean.class.getMethod("handleIt", String.class),
             methodEndpoint.getMethod());
 
-        MessageListenerContainer listenerContainer = new SimpleMessageListenerContainer();
+        MessageListenerContainer listenerContainer = mock(MessageListenerContainer.class);
         methodEndpoint.setupListenerContainer(listenerContainer);
         assertNotNull(listenerContainer.getMessageHandler());
 

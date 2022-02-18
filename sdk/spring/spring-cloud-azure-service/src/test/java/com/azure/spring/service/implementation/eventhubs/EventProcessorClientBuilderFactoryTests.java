@@ -4,7 +4,8 @@
 package com.azure.spring.service.implementation.eventhubs;
 
 import com.azure.messaging.eventhubs.EventProcessorClientBuilder;
-import com.azure.spring.service.eventhubs.processor.EventProcessingListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventListenerContainerSupport;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventMessageListener;
 import com.azure.spring.service.implementation.AzureServiceClientBuilderFactoryBaseTests;
 import com.azure.spring.service.implementation.eventhubs.factory.EventProcessorClientBuilderFactory;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,8 @@ public class EventProcessorClientBuilderFactoryTests extends AzureServiceClientB
     void customPrefetchCount() {
         TestAzureEventHubsProperties properties = createMinimalServiceProperties();
         properties.getProcessor().setPrefetchCount(150);
-        final TestEventProcessorClientBuilderFactory builderFactory = new TestEventProcessorClientBuilderFactory(properties);
+        final TestEventProcessorClientBuilderFactory builderFactory =
+            new TestEventProcessorClientBuilderFactory(properties);
         final EventProcessorClientBuilder builder = builderFactory.build();
         verify(builder, times(1)).prefetchCount(150);
     }
@@ -33,7 +35,7 @@ public class EventProcessorClientBuilderFactoryTests extends AzureServiceClientB
     static class TestEventProcessorClientBuilderFactory extends EventProcessorClientBuilderFactory {
 
         TestEventProcessorClientBuilderFactory(TestAzureEventHubsProperties properties) {
-            super(properties.getProcessor(), null, mock(EventProcessingListener.class));
+            super(properties.getProcessor(), null, mock(EventHubsEventMessageListener.class), mock(EventHubsEventListenerContainerSupport.class));
         }
 
         @Override

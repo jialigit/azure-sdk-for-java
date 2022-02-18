@@ -19,7 +19,7 @@ import com.azure.spring.integration.servicebus.inbound.health.ServiceBusProcesso
 import com.azure.spring.messaging.ConsumerIdentifier;
 import com.azure.spring.messaging.PropertiesSupplier;
 import com.azure.spring.messaging.checkpoint.CheckpointConfig;
-import com.azure.spring.servicebus.core.ServiceBusProcessorContainer;
+import com.azure.spring.servicebus.core.listener.ServiceBusMessageListenerContainer;
 import com.azure.spring.servicebus.core.ServiceBusTemplate;
 import com.azure.spring.servicebus.core.processor.DefaultServiceBusNamespaceProcessorFactory;
 import com.azure.spring.servicebus.core.producer.DefaultServiceBusNamespaceProducerFactory;
@@ -68,7 +68,7 @@ public class ServiceBusMessageChannelBinder extends
     private ServiceBusExtendedBindingProperties bindingProperties = new ServiceBusExtendedBindingProperties();
     private NamespaceProperties namespaceProperties;
     private ServiceBusTemplate serviceBusTemplate;
-    private ServiceBusProcessorContainer processorContainer;
+    private ServiceBusMessageListenerContainer processorContainer;
     private ServiceBusMessageConverter messageConverter = new ServiceBusMessageConverter();
     private final InstrumentationManager instrumentationManager = new DefaultInstrumentationManager();
     private final Map<String, ExtendedProducerProperties<ServiceBusProducerProperties>>
@@ -255,7 +255,7 @@ public class ServiceBusMessageChannelBinder extends
         return this.serviceBusTemplate;
     }
 
-    private ServiceBusProcessorContainer getProcessorContainer() {
+    private ServiceBusMessageListenerContainer getProcessorContainer() {
         if (this.processorContainer == null) {
             DefaultServiceBusNamespaceProcessorFactory factory = new DefaultServiceBusNamespaceProcessorFactory(
                 this.namespaceProperties, getProcessorPropertiesSupplier());
@@ -267,7 +267,7 @@ public class ServiceBusMessageChannelBinder extends
                 instrumentationManager.addHealthInstrumentation(instrumentation);
             });
 
-            this.processorContainer = new ServiceBusProcessorContainer(factory);
+            this.processorContainer = new ServiceBusMessageListenerContainer(factory);
         }
         return this.processorContainer;
     }

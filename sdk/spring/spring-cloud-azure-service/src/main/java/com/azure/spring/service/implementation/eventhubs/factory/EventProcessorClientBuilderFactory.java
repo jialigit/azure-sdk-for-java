@@ -20,9 +20,10 @@ import com.azure.spring.core.credential.descriptor.TokenAuthenticationDescriptor
 import com.azure.spring.core.factory.AbstractAzureAmqpClientBuilderFactory;
 import com.azure.spring.core.properties.AzureProperties;
 import com.azure.spring.core.properties.PropertyMapper;
-import com.azure.spring.service.eventhubs.processor.BatchEventProcessingListener;
-import com.azure.spring.service.eventhubs.processor.EventProcessingListener;
-import com.azure.spring.service.eventhubs.processor.RecordEventProcessingListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsBatchEventMessageListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventMessageListener;
+import com.azure.spring.service.eventhubs.processor.EventHubsEventListenerContainerSupport;
+import com.azure.spring.service.eventhubs.processor.EventHubsRecordEventMessageListener;
 import com.azure.spring.service.implementation.eventhubs.properties.EventProcessorClientProperties;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -43,21 +44,23 @@ public class EventProcessorClientBuilderFactory extends AbstractAzureAmqpClientB
 
     private final EventProcessorClientProperties eventProcessorClientProperties;
     private final CheckpointStore checkpointStore;
-    private final EventProcessingListener processorListener;
-
+    private final EventHubsEventMessageListener eventListener;
+    private final EventHubsEventListenerContainerSupport eventListenerContainerSupport;
     /**
      * Create a {@link EventProcessorClientBuilderFactory} with the {@link EventProcessorClientProperties} and a
-     * {@link CheckpointStore} and a {@link EventProcessingListener}.
+     * {@link CheckpointStore} and a {@link EventHubsEventListenerContainerSupport}.
      * @param eventProcessorClientProperties the properties of the event processor client.
      * @param checkpointStore the checkpoint store.
      * @param listener the listener for event processing.
      */
     public EventProcessorClientBuilderFactory(EventProcessorClientProperties eventProcessorClientProperties,
                                               CheckpointStore checkpointStore,
-                                              EventProcessingListener listener) {
+                                              EventHubsEventMessageListener listener,
+                                              EventHubsEventListenerContainerSupport eventListenerContainerSupport) {
         this.eventProcessorClientProperties = eventProcessorClientProperties;
         this.checkpointStore = checkpointStore;
-        this.processorListener = listener;
+        this.eventListener = listener;
+        this.eventListenerContainerSupport = eventListenerContainerSupport;
     }
 
     @Override
@@ -159,16 +162,16 @@ public class EventProcessorClientBuilderFactory extends AbstractAzureAmqpClientB
     private void configureProcessorListener(EventProcessorClientBuilder builder) {
         final EventProcessorClientProperties.EventBatch batch = this.eventProcessorClientProperties.getBatch();
 
-        if (processorListener instanceof BatchEventProcessingListener) {
+        if (eventListener instanceof EventHubsBatchEventMessageListener) {
             Assert.notNull(batch.getMaxSize(), "Batch max size must be provided");
-            builder.processEventBatch(((BatchEventProcessingListener) processorListener)::onEventBatch,
+            builder.processEventBatch(((EventHubsBatchEventMessageListener) eventListener)::onEventBatch,
                 batch.getMaxSize(), batch.getMaxWaitTime());
-        } else if (processorListener instanceof RecordEventProcessingListener) {
-            builder.processEvent(((RecordEventProcessingListener) processorListener)::onEvent);
+        } else if (eventListener instanceof EventHubsRecordEventMessageListener) {
+            builder.processEvent(((EventHubsRecordEventMessageListener) eventListener)::onEvent);
         }
-        builder.processError(processorListener.getErrorContextConsumer());
-        builder.processPartitionClose(processorListener.getCloseContextConsumer());
-        builder.processPartitionInitialization(processorListener.getInitializationContextConsumer());
+        builder.processError(eventListenerContainerSupport.getErrorContextConsumer());
+        builder.processPartitionClose(eventListenerContainerSupport.getCloseContextConsumer());
+        builder.processPartitionInitialization(eventListenerContainerSupport.getInitializationContextConsumer());
     }
 
 }
