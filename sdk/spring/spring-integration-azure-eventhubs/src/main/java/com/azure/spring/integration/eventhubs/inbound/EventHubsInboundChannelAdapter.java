@@ -54,11 +54,8 @@ import java.util.Map;
  *        public EventHubsInboundChannelAdapter messageChannelAdapter(
  *         {@literal @}Qualifier("input") MessageChannel inputChannel, EventHubsProcessorFactory processorFactory) {
  *         EventHubsContainerProperties containerProperties = new EventHubsContainerProperties();
- *         containerProperties.setEventHubName(EVENTHUB_NAME);
- *         containerProperties.setConsumerGroup(CONSUMER_GROUP);
- *         StartPositionProperties position = new StartPositionProperties();
- *         position.setOffset("earliest");
- *         containerProperties.getInitialPartitionEventPosition().put("0", position);
+ *         containerProperties.setEventHubName("eventhub-1");
+ *         containerProperties.setConsumerGroup("consumer-group-1");
  *         EventHubsMessageListenerContainer listenerContainer = new EventHubsMessageListenerContainer(processorFactory,
  *             containerProperties);
  *         CheckpointConfig config = new CheckpointConfig(CheckpointMode.MANUAL);

@@ -56,9 +56,6 @@ public class AzureListenerAnnotationBeanPostProcessorTests {
         MessageListenerContainer listenerContainer = mock(MessageListenerContainer.class);
         AzureMessageConverter<?, ?> messageConverter = mock(AzureMessageConverter.class);
         methodEndpoint.setupListenerContainer(listenerContainer, messageConverter);
-        // TODO
-//        assertNotNull(listenerContainer.getMessageHandler());
-
         assertTrue(container.isStarted(), "Should have been started " + container);
         context.close(); // Close and stop the listeners
         assertTrue(container.isStopped(), "Should have been stopped " + container);

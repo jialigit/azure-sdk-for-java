@@ -49,9 +49,9 @@ import java.util.Map;
  *
  *    {@literal @}Bean
  *         public ServiceBusInboundChannelAdapter queueMessageChannelAdapter(
- *         {@literal @}Qualifier(INPUT_CHANNEL) MessageChannel inputChannel, ServiceBusProcessorFactory processorFactory) {
+ *         {@literal @}Qualifier("input") MessageChannel inputChannel, ServiceBusProcessorFactory processorFactory) {
  *         ServiceBusContainerProperties containerProperties = new ServiceBusContainerProperties();
- *         containerProperties.setEntityName(QUEUE_NAME);
+ *         containerProperties.setEntityName("queue-1");
  *         ServiceBusMessageListenerContainer listenerContainer = new ServiceBusMessageListenerContainer(processorFactory, containerProperties);
  *         ServiceBusInboundChannelAdapter adapter = new ServiceBusInboundChannelAdapter(listenerContainer,
  *             new CheckpointConfig(CheckpointMode.MANUAL));
